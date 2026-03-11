@@ -40,3 +40,14 @@ target_link_libraries(physics_demo PRIVATE physx3d pthread)
 # Install
 install(TARGETS physx3d DESTINATION lib)
 install(DIRECTORY include/physx3d DESTINATION include)
+
+
+enable_testing()
+
+add_executable(physx3d_regression
+    test/regression.cpp
+)
+
+target_link_libraries(physx3d_regression PRIVATE physx3d pthread)
+
+add_test(NAME physx3d_regression COMMAND physx3d_regression)

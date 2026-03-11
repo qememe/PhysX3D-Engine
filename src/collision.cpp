@@ -1,6 +1,7 @@
 #include "../include/physx3d/collision.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace physx3d {
 
@@ -63,7 +64,6 @@ bool detectCollision(
                               std::get<Box>(shapeA), posA, rotA, contact);
         if (hit) {
             contact.normal = -contact.normal;
-            std::swap(contact.bodyA, contact.bodyB);
         }
         return hit;
     }
@@ -150,51 +150,67 @@ bool boxVsBox(const Box& a, const Vec3& posA, const Quaternion& rotA,
 {
     // Simplified SAT (Separating Axis Theorem) implementation
     // For production: full SAT with all 15 axes (6 face + 9 edge cross products)
-    
+
     Mat3 rotMatA = rotA.toMat3();
     Mat3 rotMatB = rotB.toMat3();
-    
+
     Vec3 delta = posB - posA;
-    
+    float minOverlap = std::numeric_limits<float>::max();
+    Vec3 bestAxis(0, 1, 0);
+
     // Test face normals of A
     for (int i = 0; i < 3; ++i) {
         Vec3 axis(rotMatA.m[i * 3], rotMatA.m[i * 3 + 1], rotMatA.m[i * 3 + 2]);
-        
+
         float projA = a.halfExtents[i];
         float projB = 0;
         for (int j = 0; j < 3; ++j) {
             Vec3 axisB(rotMatB.m[j * 3], rotMatB.m[j * 3 + 1], rotMatB.m[j * 3 + 2]);
             projB += b.halfExtents[j] * std::abs(axis.dot(axisB));
         }
-        
-        float dist = std::abs(delta.dot(axis));
-        if (dist > projA + projB) {
+
+        float signedDist = delta.dot(axis);
+        float dist = std::abs(signedDist);
+        float overlap = projA + projB - dist;
+        if (overlap < 0.0f) {
             return false; // Separating axis found
         }
+
+        if (overlap < minOverlap) {
+            minOverlap = overlap;
+            bestAxis = (signedDist >= 0.0f) ? axis : -axis;
+        }
     }
-    
+
     // Test face normals of B
     for (int i = 0; i < 3; ++i) {
         Vec3 axis(rotMatB.m[i * 3], rotMatB.m[i * 3 + 1], rotMatB.m[i * 3 + 2]);
-        
+
         float projB = b.halfExtents[i];
         float projA = 0;
         for (int j = 0; j < 3; ++j) {
             Vec3 axisA(rotMatA.m[j * 3], rotMatA.m[j * 3 + 1], rotMatA.m[j * 3 + 2]);
             projA += a.halfExtents[j] * std::abs(axis.dot(axisA));
         }
-        
-        float dist = std::abs(delta.dot(axis));
-        if (dist > projA + projB) {
+
+        float signedDist = delta.dot(axis);
+        float dist = std::abs(signedDist);
+        float overlap = projA + projB - dist;
+        if (overlap < 0.0f) {
             return false;
         }
+
+        if (overlap < minOverlap) {
+            minOverlap = overlap;
+            bestAxis = (signedDist >= 0.0f) ? axis : -axis;
+        }
     }
-    
-    // Collision detected (simplified contact generation)
-    contact.normal = (delta.lengthSq() > 1e-6f) ? delta.normalized() : Vec3(0, 1, 0);
+
+    // Collision detected (approximate contact generation based on best face axis)
+    contact.normal = (delta.lengthSq() > 1e-6f) ? delta.normalized() : bestAxis.normalized();
     contact.point = (posA + posB) * 0.5f;
-    contact.penetration = 0.1f; // Approximation
-    
+    contact.penetration = std::max(minOverlap, 0.0f);
+
     return true;
 }
 
