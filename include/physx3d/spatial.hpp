@@ -31,7 +31,7 @@ public:
     // Query overlapping pairs
     void queryOverlaps(std::vector<std::pair<int, int>>& pairs) const;
     
-    // Raycast query
+    // Raycast query against BVH node/object AABBs (broad-phase approximation).
     bool raycast(const Vec3& origin, const Vec3& direction, float maxDist, int& hitIndex) const;
     
     void clear() { nodes.clear(); }

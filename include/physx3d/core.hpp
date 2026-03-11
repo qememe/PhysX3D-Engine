@@ -117,6 +117,8 @@ public:
     void setThreadCount(int count) { threadCount = std::max(1, count); }
     
     // Queries
+    // NOTE: raycast currently performs closest-hit test against body AABBs (broad-phase approximation),
+    // not exact shape intersection.
     bool raycast(const Vec3& origin, const Vec3& direction, float maxDist, 
                  RigidBody*& hitBody, Vec3& hitPoint) const;
     
@@ -128,7 +130,7 @@ private:
     Vec3 gravity;
     BVH bvh;
     
-    int threadCount = std::thread::hardware_concurrency();
+    int threadCount = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
     
     // Simulation steps
     void applyGravity(float dt);

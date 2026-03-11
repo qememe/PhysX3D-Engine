@@ -63,7 +63,6 @@ bool detectCollision(
                               std::get<Box>(shapeA), posA, rotA, contact);
         if (hit) {
             contact.normal = -contact.normal;
-            std::swap(contact.bodyA, contact.bodyB);
         }
         return hit;
     }
