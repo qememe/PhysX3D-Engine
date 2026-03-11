@@ -70,10 +70,10 @@ int BVH::buildRecursive(const std::vector<AABB>& aabbs,
     int nodeIdx = static_cast<int>(nodes.size());
     nodes.emplace_back();
 
-    // Compute bounding box for all objects
-    nodes[nodeIdx].aabb = aabbs[start];
+    // Compute bounding box for objects referenced by indices[start..end)
+    nodes[nodeIdx].aabb = aabbs[indices[start]];
     for (int i = start + 1; i < end; ++i) {
-        nodes[nodeIdx].aabb.merge(aabbs[i]);
+        nodes[nodeIdx].aabb.merge(aabbs[indices[i]]);
     }
 
     int count = end - start;

@@ -138,27 +138,33 @@ void PhysicsWorld::step(float dt) {
         return;
     }
 
-    // 1. Apply gravity
-    applyGravity(dt);
-    
-    // 2. Broad-phase collision detection
-    std::vector<std::pair<int, int>> pairs;
-    broadPhase(pairs);
-    
-    // 3. Narrow-phase collision detection
-    std::vector<Contact> contacts;
-    narrowPhase(pairs, contacts);
-    
-    // 4. Solve contacts (iterative)
-    for (int iter = 0; iter < 10; ++iter) {
-        solveContacts(contacts, dt);
+    constexpr float kMaxSubstep = 1.0f / 480.0f;
+    int substeps = std::max(1, static_cast<int>(std::ceil(dt / kMaxSubstep)));
+    float subDt = dt / static_cast<float>(substeps);
+
+    for (int sub = 0; sub < substeps; ++sub) {
+        // 1. Apply gravity
+        applyGravity(subDt);
+
+        // 2. Broad-phase collision detection
+        std::vector<std::pair<int, int>> pairs;
+        broadPhase(pairs);
+
+        // 3. Narrow-phase collision detection
+        std::vector<Contact> contacts;
+        narrowPhase(pairs, contacts);
+
+        // 4. Solve contacts (iterative)
+        for (int iter = 0; iter < 10; ++iter) {
+            solveContacts(contacts, subDt);
+        }
+
+        // 5. Integrate velocities
+        integrateVelocities(subDt);
+
+        // 6. Update sleeping states
+        updateSleeping(subDt);
     }
-    
-    // 5. Integrate velocities
-    integrateVelocities(dt);
-    
-    // 6. Update sleeping states
-    updateSleeping(dt);
 }
 
 void PhysicsWorld::applyGravity(float dt) {
@@ -177,17 +183,17 @@ void PhysicsWorld::integrateVelocities(float dt) {
 
 void PhysicsWorld::broadPhase(std::vector<std::pair<int, int>>& pairs) {
     // Build BVH
-    std::vector<AABB> aabbs;
+    std::vector<AABB> aabbs(bodies.size());
     std::vector<int> indices;
-    
+
     for (size_t i = 0; i < bodies.size(); ++i) {
+        aabbs[i] = bodies[i]->getAABB();
         if (!bodies[i]->isSleeping()) {
-            aabbs.push_back(bodies[i]->getAABB());
-            indices.push_back(i);
+            indices.push_back(static_cast<int>(i));
         }
     }
-    
-    if (!aabbs.empty()) {
+
+    if (!indices.empty()) {
         bvh.build(aabbs, indices);
         bvh.queryOverlaps(pairs);
     }
